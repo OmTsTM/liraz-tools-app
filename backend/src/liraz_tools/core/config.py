@@ -69,6 +69,20 @@ class Settings(BaseSettings):
     auth_cookie_secure: bool = False
     auth_cookie_name: str = "liraz_session"
 
+    # HTTP Basic Auth global (gating de borda — antes do app de login). Se
+    # `basic_auth_user` e `basic_auth_password` estiverem setados, TODO o
+    # tráfego HTTP precisa do `Authorization: Basic ...` correto (modal do
+    # navegador). Útil pra esconder o app pré-login do mundo no Render —
+    # nem o login fica aberto pra força bruta. Em dev local fica vazio.
+    basic_auth_user: str = ""
+    basic_auth_password: str = ""
+
+    # SPA estática (frontend buildado). Em produção, o backend serve o
+    # `frontend/dist/` empacotado — paths que não começam com `/api` ou
+    # `/health` viram `index.html` (SPA routing). Em dev, deixar vazio:
+    # o Vite continua servindo.
+    spa_dist_dir: str = ""
+
 
 @lru_cache
 def get_settings() -> Settings:

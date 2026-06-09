@@ -1,0 +1,45 @@
+# Caches Python
+**/__pycache__/
+**/*.pyc
+**/.mypy_cache/
+**/.pytest_cache/
+**/.ruff_cache/
+**/.coverage
+**/.coverage.*
+**/htmlcov/
+
+# Venvs
+**/.venv/
+**/venv/
+backend/.venv/
+
+# Node
+**/node_modules/
+frontend/dist/
+frontend/dist-ssr/
+**/*.log
+
+# IDE / OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+*.swp
+
+# Git e doc local
+.git/
+.gitignore
+.gitattributes
+CLAUDE.md
+change.md
+change.xlsx
+liraz-precos-backup*.xlsx
+extensions/
+
+# Dados locais (devem vir do volume em runtime, não da imagem)
+data/
+*.db
+*.sqlite
+
+# Claude config local
+.claude/
