@@ -12,6 +12,7 @@ import {
 import { useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 
+import { RoleGate } from "@/components/auth/role-gate";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -123,14 +124,16 @@ export function SimulationsListPage() {
           </p>
         </div>
 
-        <Button onClick={handleStart} disabled={startMutation.isPending} size="sm">
-          {startMutation.isPending ? (
-            <Loader2 className="h-4 w-4 animate-spin" />
-          ) : (
-            <Plus className="h-4 w-4" />
-          )}
-          Nova simulação
-        </Button>
+        <RoleGate profileId={id} minimum="operator">
+          <Button onClick={handleStart} disabled={startMutation.isPending} size="sm">
+            {startMutation.isPending ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
+              <Plus className="h-4 w-4" />
+            )}
+            Nova simulação
+          </Button>
+        </RoleGate>
       </div>
 
       {/* Lista */}

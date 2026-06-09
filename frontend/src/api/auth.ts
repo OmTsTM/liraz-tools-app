@@ -39,6 +39,10 @@ export const authApi = {
     return apiRequest<AuthUser>("/api/auth/me");
   },
 
+  async myAccess(): Promise<ProfileAccess[]> {
+    return apiRequest<ProfileAccess[]>("/api/auth/my-access");
+  },
+
   async changePassword(currentPassword: string, newPassword: string): Promise<void> {
     return apiRequest<void>("/api/auth/change-password", {
       method: "POST",

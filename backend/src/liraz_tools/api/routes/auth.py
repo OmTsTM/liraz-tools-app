@@ -157,6 +157,24 @@ async def me(user: CurrentUser) -> UserResponse:
     return _user_to_response(user)
 
 
+@router.get("/my-access", response_model=list[ProfileAccessResponse])
+async def my_access(
+    user: CurrentUser,
+    access_repo: AccessRepo,
+) -> list[ProfileAccessResponse]:
+    """ACLs do user logado (qual role em quais lojas).
+
+    Admin global (`is_admin=True`) retorna lista vazia — admin enxerga TUDO
+    via bypass do servidor, não precisa de linhas em `user_profile_access`.
+    Frontend deve checar `is_admin` em `/me` antes — admin = role "admin"
+    em qualquer loja.
+    """
+    if user.is_admin:
+        return []
+    rows = await access_repo.list_for_user(user.id)
+    return [ProfileAccessResponse.model_validate(r, from_attributes=True) for r in rows]
+
+
 @router.post("/change-password", status_code=status.HTTP_204_NO_CONTENT)
 async def change_password(
     body: ChangePasswordRequest,

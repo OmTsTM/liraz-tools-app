@@ -14,6 +14,7 @@ import {
 import { useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 
+import { RoleGate } from "@/components/auth/role-gate";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -190,34 +191,36 @@ export function ProfileDashboardPage() {
               <TrendingUp className="h-4 w-4" />
               Gerar relatório de margens
             </Button>
-            <Button
-              variant="default"
-              size="sm"
-              onClick={() => navigate(`/profiles/${id}/simulations`)}
-              disabled={!isConnected || !profile.config.custos_xlsx_path}
-            >
-              <Sparkles className="h-4 w-4" />
-              Simular reprecificação
-            </Button>
-            <Button
-              variant="default"
-              size="sm"
-              onClick={() => navigate(`/profiles/${id}/campaigns`)}
-              disabled={!isConnected}
-            >
-              <Calendar className="h-4 w-4" />
-              Campanhas
-            </Button>
-            <Button
-              variant="default"
-              size="sm"
-              onClick={() => navigate(`/profiles/${id}/reprecificar-tudo`)}
-              disabled={!isConnected || !profile.config.custos_xlsx_path}
-              title="Pra lojas sem campanha — recalcula o preço-base de N anúncios pra atingir a margem alvo do perfil e aplica direto via PUT no ML"
-            >
-              <Tag className="h-4 w-4" />
-              Reprecificar tudo
-            </Button>
+            <RoleGate profileId={id} minimum="operator">
+              <Button
+                variant="default"
+                size="sm"
+                onClick={() => navigate(`/profiles/${id}/simulations`)}
+                disabled={!isConnected || !profile.config.custos_xlsx_path}
+              >
+                <Sparkles className="h-4 w-4" />
+                Simular reprecificação
+              </Button>
+              <Button
+                variant="default"
+                size="sm"
+                onClick={() => navigate(`/profiles/${id}/campaigns`)}
+                disabled={!isConnected}
+              >
+                <Calendar className="h-4 w-4" />
+                Campanhas
+              </Button>
+              <Button
+                variant="default"
+                size="sm"
+                onClick={() => navigate(`/profiles/${id}/reprecificar-tudo`)}
+                disabled={!isConnected || !profile.config.custos_xlsx_path}
+                title="Pra lojas sem campanha — recalcula o preço-base de N anúncios pra atingir a margem alvo do perfil e aplica direto via PUT no ML"
+              >
+                <Tag className="h-4 w-4" />
+                Reprecificar tudo
+              </Button>
+            </RoleGate>
           </div>
           {!profile.config.custos_xlsx_path && isConnected && (
             <p className="text-xs text-muted-foreground">
@@ -227,34 +230,36 @@ export function ProfileDashboardPage() {
         </CardContent>
       </Card>
 
-      <Card className="border-destructive/40">
-        <CardHeader>
-          <CardTitle className="text-base">Ações sensíveis</CardTitle>
-        </CardHeader>
-        <CardContent className="flex flex-wrap gap-2">
-          {isConnected && (
+      <RoleGate profileId={id} minimum="admin">
+        <Card className="border-destructive/40">
+          <CardHeader>
+            <CardTitle className="text-base">Ações sensíveis</CardTitle>
+          </CardHeader>
+          <CardContent className="flex flex-wrap gap-2">
+            {isConnected && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setConfirmDisconnect(true)}
+                disabled={disconnect.isPending}
+              >
+                <LogOut className="h-4 w-4" />
+                Desconectar
+              </Button>
+            )}
             <Button
               variant="outline"
               size="sm"
-              onClick={() => setConfirmDisconnect(true)}
-              disabled={disconnect.isPending}
+              onClick={() => setConfirmArchive(true)}
+              disabled={archive.isPending}
+              className="text-destructive hover:bg-destructive/10 hover:text-destructive"
             >
-              <LogOut className="h-4 w-4" />
-              Desconectar
+              <Archive className="h-4 w-4" />
+              Arquivar loja
             </Button>
-          )}
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => setConfirmArchive(true)}
-            disabled={archive.isPending}
-            className="text-destructive hover:bg-destructive/10 hover:text-destructive"
-          >
-            <Archive className="h-4 w-4" />
-            Arquivar loja
-          </Button>
-        </CardContent>
-      </Card>
+          </CardContent>
+        </Card>
+      </RoleGate>
 
       <TestConnectionModal
         open={testResult !== null}

@@ -21,30 +21,14 @@ export function roleAtLeast(have: ProfileRole, minimum: ProfileRole): boolean {
 }
 
 /**
- * Devolve as ACLs do user logado. Admin global: cache vazio (admin não
- * precisa de linha). Hook é usado pra descobrir role em loja específica
- * via `useMyRoleInProfile`.
+ * Devolve as ACLs do user logado via `/api/auth/my-access`. Admin global:
+ * cache vazio (admin não precisa de linha — bypassa via `is_admin`).
  */
 export function useMyProfileAccess() {
   const { user } = useAuth();
   return useQuery({
     queryKey: ["auth", "my-access", user?.id],
-    queryFn: async () => {
-      if (!user) return [];
-      // Endpoint só funciona pra admin global, mas é o jeito mais barato
-      // de listar. Como users comuns só veem suas próprias ACLs via lojas
-      // permitidas (filtro do backend), aqui retornamos vazio pra non-admin
-      // — o role efetivo vem do `useProfilesQuery` que já filtra.
-      if (!user.is_admin) {
-        try {
-          return await authApi.listAccessForUser(user.id);
-        } catch {
-          // Non-admin não tem permissão pra esse endpoint — devolve vazio.
-          return [];
-        }
-      }
-      return [];
-    },
+    queryFn: () => authApi.myAccess(),
     enabled: !!user,
     staleTime: 5 * 60 * 1000,
   });
