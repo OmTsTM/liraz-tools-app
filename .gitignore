@@ -1,0 +1,105 @@
+# ==========================================
+# Python
+# ==========================================
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+.venv/
+venv/
+env/
+*.egg-info/
+.pytest_cache/
+.coverage
+.coverage.*
+.mypy_cache/
+.ruff_cache/
+htmlcov/
+dist/
+build/
+
+# ==========================================
+# Node / Frontend
+# ==========================================
+node_modules/
+frontend/dist/
+frontend/dist-ssr/
+*.local
+.pnpm-debug.log
+.pnpm-store/
+
+# ==========================================
+# Env / Secrets
+# ==========================================
+.env
+.env.local
+.env.*.local
+*.pem
+*.key
+secrets/
+
+# ==========================================
+# IDE / Editor
+# ==========================================
+.vscode/
+.idea/
+*.swp
+*.swo
+*.suo
+
+# ==========================================
+# OS
+# ==========================================
+.DS_Store
+Thumbs.db
+
+# ==========================================
+# App data (qualquer SQLite ou dump no projeto)
+# ==========================================
+data/
+*.db
+*.db-journal
+*.sqlite
+*.sqlite3
+
+# ==========================================
+# Claude Code (mantém settings.json compartilhado, ignora local)
+# ==========================================
+.claude/settings.local.json
+.claude/projects/
+.claude/sessions/
+
+# ==========================================
+# Logs
+# ==========================================
+logs/
+*.log
+
+# ==========================================
+# Scratch / debug pessoal (NÃO commitar)
+# ==========================================
+backend/_scratch_*.py
+backend/scratch_*.py
+_scratch_*.py
+scratch_*.py
+
+# ==========================================
+# Planilhas / backups com dados de loja real
+# ==========================================
+liraz-precos-backup*.xlsx
+custos*.xlsx
+custos*.csv
+tarifas*.xlsx
+relatorio_*.pdf
+relatorios/
+
+# (change.xlsx / change.md são doc de referência do modelo de cálculo — commitar)
+
+# ==========================================
+# Tooling caches
+# ==========================================
+.cache/
+.parcel-cache/
+.turbo/
+.next/

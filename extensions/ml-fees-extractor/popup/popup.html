@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <title>LiraZ — ML Fees Extractor</title>
+  <link rel="stylesheet" href="popup.css">
+</head>
+<body>
+  <header>
+    <h1>LiraZ Fees Extractor</h1>
+    <p class="subtitle">Painel ML → planilha (sem Setup)</p>
+  </header>
+
+  <section class="status">
+    <div class="row"><span>Página atual</span><strong id="page-url">—</strong></div>
+    <div class="row"><span>Anúncios na página</span><strong id="containers-count">—</strong></div>
+    <div class="row"><span>Buffer acumulado</span><strong id="rows-count" class="buffer-count">0</strong></div>
+    <div class="row"><span>Páginas processadas</span><strong id="pages-count">0</strong></div>
+    <div class="row"><span>Última captura</span><strong id="last-capture">—</strong></div>
+  </section>
+
+  <section class="actions">
+    <button id="btn-capture" class="primary">
+      <span class="icon">📥</span> Capturar página atual
+    </button>
+    <button id="btn-expand">
+      <span class="icon">🔽</span> Expandir famílias (manual)
+    </button>
+    <label class="checkbox">
+      <input type="checkbox" id="auto-paginate">
+      Auto-paginar (clica "Seguinte" automaticamente)
+    </label>
+    <div class="delay-row">
+      <label for="delay">Delay entre páginas (s):</label>
+      <input type="number" id="delay" min="1" max="10" value="2" step="1">
+    </div>
+    <button id="btn-diagnose">
+      <span class="icon">🔍</span> Diagnóstico (testar seletores)
+    </button>
+    <button id="btn-map">
+      <span class="icon">🗺️</span> Mapear página (dump pra dev)
+    </button>
+  </section>
+
+  <section class="export">
+    <p class="export-hint">Os dados ficam no buffer até você clicar em exportar. Capture quantas páginas quiser antes.</p>
+    <button id="btn-export" class="success">
+      <span class="icon">💾</span> <span id="btn-export-label">Exportar XLSX</span>
+    </button>
+    <button id="btn-reset" class="danger">
+      <span class="icon">🗑️</span> Limpar buffer
+    </button>
+  </section>
+
+  <section class="log">
+    <div class="log-title">Atividade</div>
+    <div id="log-content"></div>
+  </section>
+
+  <script src="popup.js"></script>
+</body>
+</html>

@@ -1,0 +1,114 @@
+/* Overlay do modo Setup — não-intrusivo, mas visível. */
+
+.mlx-setup-banner {
+  position: fixed;
+  top: 12px;
+  right: 12px;
+  width: 360px;
+  z-index: 2147483647;
+  background: #fff;
+  border-radius: 8px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.18);
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  font-size: 13px;
+  color: #222;
+  padding: 14px 16px;
+  border: 2px solid #3483fa;
+  animation: mlx-slide-in 220ms ease-out;
+}
+
+@keyframes mlx-slide-in {
+  from { transform: translateX(20px); opacity: 0; }
+  to   { transform: translateX(0);    opacity: 1; }
+}
+
+.mlx-setup-banner h2 {
+  margin: 0 0 8px;
+  font-size: 14px;
+  color: #3483fa;
+}
+
+.mlx-setup-banner .mlx-step {
+  font-weight: 600;
+  margin-bottom: 4px;
+  color: #222;
+}
+
+.mlx-setup-banner .mlx-hint {
+  color: #555;
+  margin-bottom: 8px;
+  line-height: 1.4;
+}
+
+.mlx-setup-banner .mlx-progress {
+  display: flex;
+  gap: 4px;
+  margin-bottom: 10px;
+}
+.mlx-setup-banner .mlx-progress span {
+  flex: 1;
+  height: 4px;
+  background: #e0e0e0;
+  border-radius: 2px;
+}
+.mlx-setup-banner .mlx-progress span.done {
+  background: #00a650;
+}
+.mlx-setup-banner .mlx-progress span.active {
+  background: #3483fa;
+}
+
+.mlx-setup-banner button {
+  padding: 6px 12px;
+  border: 1px solid #d0d0d0;
+  border-radius: 4px;
+  background: #fff;
+  font-size: 12px;
+  cursor: pointer;
+  margin-right: 6px;
+}
+.mlx-setup-banner button.mlx-cancel {
+  color: #c0392b;
+  border-color: #e8c7c0;
+}
+.mlx-setup-banner button.mlx-skip {
+  background: #f5f5f5;
+}
+
+/* Highlight do elemento sob hover durante o Setup */
+.mlx-hover-target {
+  outline: 3px solid #3483fa !important;
+  outline-offset: 1px !important;
+  background: rgba(52, 131, 250, 0.12) !important;
+  cursor: crosshair !important;
+}
+
+/* Marca os campos já confirmados durante o Setup */
+.mlx-confirmed {
+  outline: 2px solid #00a650 !important;
+  outline-offset: 1px !important;
+}
+
+/* Indicador de progresso durante captura */
+.mlx-capture-toast {
+  position: fixed;
+  bottom: 20px;
+  right: 20px;
+  z-index: 2147483647;
+  background: #1e1e1e;
+  color: #fff;
+  padding: 10px 14px;
+  border-radius: 6px;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  font-size: 12px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3);
+  max-width: 360px;
+}
+.mlx-capture-toast .mlx-toast-title {
+  font-weight: 600;
+  margin-bottom: 4px;
+}
+.mlx-capture-toast .mlx-toast-detail {
+  opacity: 0.8;
+  font-size: 11px;
+}

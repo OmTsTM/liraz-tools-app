@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>LiraZ Tools</title>
+    <script>
+      // Anti-flash: aplica o tema ANTES do React montar, lendo do localStorage.
+      // Sem isso, a tela aparece em light por um frame e depois "pisca" pra dark.
+      (function () {
+        try {
+          var stored = localStorage.getItem("liraz-tools.theme");
+          var theme = stored === "light" || stored === "dark" || stored === "system"
+            ? stored
+            : "system";
+          var resolved =
+            theme === "system"
+              ? window.matchMedia("(prefers-color-scheme: dark)").matches
+                ? "dark"
+                : "light"
+              : theme;
+          if (resolved === "dark") {
+            document.documentElement.classList.add("dark");
+          }
+        } catch (e) {
+          /* localStorage indisponível, ignora */
+        }
+      })();
+    </script>
+  </head>
+  <body class="bg-background text-foreground antialiased">
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>

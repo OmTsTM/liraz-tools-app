@@ -1,0 +1,39 @@
+{
+  "manifest_version": 3,
+  "name": "LiraZ — ML Fees Extractor",
+  "description": "Extrai tarifa fixa e frete do painel de anúncios do Mercado Livre, página a página, e exporta CSV pra usar no LiraZ Tools.",
+  "version": "0.1.0",
+  "permissions": ["storage", "scripting", "activeTab", "downloads"],
+  "host_permissions": [
+    "https://*.mercadolivre.com.br/*",
+    "https://*.mercadolibre.com.br/*"
+  ],
+  "action": {
+    "default_title": "LiraZ — ML Fees Extractor",
+    "default_popup": "popup/popup.html"
+  },
+  "background": {
+    "service_worker": "background/service-worker.js",
+    "type": "module"
+  },
+  "content_scripts": [
+    {
+      "matches": [
+        "https://*.mercadolivre.com.br/*",
+        "https://*.mercadolibre.com.br/*"
+      ],
+      "js": ["content/content.js"],
+      "css": ["content/overlay.css"],
+      "run_at": "document_idle"
+    }
+  ],
+  "web_accessible_resources": [
+    {
+      "resources": ["content/*", "popup/*"],
+      "matches": [
+        "https://*.mercadolivre.com.br/*",
+        "https://*.mercadolibre.com.br/*"
+      ]
+    }
+  ]
+}
