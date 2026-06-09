@@ -15,7 +15,15 @@ from uuid import UUID
 
 from fastapi import APIRouter, HTTPException, Query, status
 
-from liraz_tools.api.deps import ProfileRepo, SettingsRepo
+from liraz_tools.api.deps import (
+    AccessRepo,
+    AdminUser,
+    CurrentUser,
+    ProfileRepo,
+    RequireAdminProfile,
+    RequireViewer,
+    SettingsRepo,
+)
 from liraz_tools.api.schemas.profile_schemas import (
     ActiveProfileResponse,
     CreateProfileRequest,
@@ -50,11 +58,18 @@ logger = get_logger(__name__)
 @router.get("", response_model=ListProfilesResponse)
 async def list_profiles(
     repo: ProfileRepo,
+    user: CurrentUser,
+    access_repo: AccessRepo,
     include_archived: bool = Query(False, description="Incluir lojas arquivadas."),
 ) -> ListProfilesResponse:
-    """Lista todos os perfis (lojas) cadastrados."""
+    """Lista lojas que o usuário tem acesso. Admin global vê todas."""
     use_case = ListProfilesUseCase(repo)
     profiles = await use_case.execute(include_archived=include_archived)
+    if not user.is_admin:
+        # Filtra pra só as lojas em que o user tem acesso (ACL granular).
+        access_rows = await access_repo.list_for_user(user.id)
+        allowed = {a.profile_id for a in access_rows}
+        profiles = [p for p in profiles if p.id in allowed]
     return ListProfilesResponse(
         items=[ProfileResponse.from_domain(p) for p in profiles],
         total=len(profiles),
@@ -69,8 +84,9 @@ async def list_profiles(
 async def create_profile(
     body: CreateProfileRequest,
     repo: ProfileRepo,
+    _admin: AdminUser,
 ) -> ProfileResponse:
-    """Cria uma loja nova (estado DRAFT, aguardando OAuth)."""
+    """Cria uma loja nova (estado DRAFT, aguardando OAuth). Admin global only."""
     use_case = CreateProfileUseCase(repo)
     try:
         profile = await use_case.execute(name=body.name)
@@ -85,8 +101,14 @@ async def create_profile(
 async def get_active_profile(
     profile_repo: ProfileRepo,
     settings_repo: SettingsRepo,
+    user: CurrentUser,
+    access_repo: AccessRepo,
 ) -> ActiveProfileResponse:
-    """Retorna o perfil ativo (último selecionado pelo usuário)."""
+    """Retorna o perfil ativo (último selecionado pelo usuário).
+
+    Se o user atual não tem acesso à loja ativa (admin trocou ACL),
+    retorna None — frontend deve cair pro seletor de lojas.
+    """
     active_id_str = await settings_repo.get(ACTIVE_PROFILE_KEY)
     if not active_id_str:
         return ActiveProfileResponse(profile=None)
@@ -99,6 +121,12 @@ async def get_active_profile(
         await settings_repo.delete(ACTIVE_PROFILE_KEY)
         return ActiveProfileResponse(profile=None)
 
+    # Filtra pela ACL — non-admin só vê se tem linha em access
+    if not user.is_admin:
+        role = await access_repo.get_role(user_id=user.id, profile_id=active_id)
+        if role is None:
+            return ActiveProfileResponse(profile=None)
+
     return ActiveProfileResponse(profile=ProfileResponse.from_domain(profile))
 
 
@@ -107,8 +135,9 @@ async def activate_profile(
     profile_id: UUID,
     profile_repo: ProfileRepo,
     settings_repo: SettingsRepo,
+    _role: RequireViewer,
 ) -> ActiveProfileResponse:
-    """Marca um perfil como o ativo atual."""
+    """Marca um perfil como o ativo atual (viewer+ na loja)."""
     try:
         profile = await profile_repo.get_by_id(profile_id)
     except ProfileNotFoundError as e:
@@ -120,8 +149,10 @@ async def activate_profile(
 
 
 @router.get("/{profile_id}", response_model=ProfileResponse)
-async def get_profile(profile_id: UUID, repo: ProfileRepo) -> ProfileResponse:
-    """Detalhe de um perfil por id."""
+async def get_profile(
+    profile_id: UUID, repo: ProfileRepo, _role: RequireViewer,
+) -> ProfileResponse:
+    """Detalhe de um perfil por id (viewer+ na loja)."""
     use_case = GetProfileUseCase(repo)
     try:
         profile = await use_case.execute(profile_id)
@@ -135,8 +166,9 @@ async def update_profile(
     profile_id: UUID,
     body: UpdateProfileRequest,
     repo: ProfileRepo,
+    _role: RequireAdminProfile,
 ) -> ProfileResponse:
-    """Atualiza nome ou config de um perfil."""
+    """Atualiza nome ou config de um perfil. Só admin da loja (ou global)."""
     use_case = UpdateProfileConfigUseCase(repo)
     new_config = body.config.to_domain() if body.config else None
     try:
@@ -156,8 +188,9 @@ async def update_profile(
 async def archive_profile(
     profile_id: UUID,
     repo: ProfileRepo,
+    _admin: AdminUser,
 ) -> ProfileResponse:
-    """Arquiva uma loja (soft delete). Preserva dados e histórico."""
+    """Arquiva uma loja (soft delete). Admin global only."""
     use_case = ArchiveProfileUseCase(repo)
     try:
         profile = await use_case.execute(profile_id)
@@ -172,6 +205,7 @@ async def archive_profile(
 async def unarchive_profile(
     profile_id: UUID,
     repo: ProfileRepo,
+    _admin: AdminUser,
 ) -> ProfileResponse:
     """Desarquiva uma loja.
 
@@ -207,6 +241,7 @@ async def unarchive_profile(
 async def delete_profile(
     profile_id: UUID,
     repo: ProfileRepo,
+    _admin: AdminUser,
 ) -> None:
     """Hard delete — apaga o perfil permanentemente.
 

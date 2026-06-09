@@ -11,9 +11,14 @@ from __future__ import annotations
 
 from uuid import UUID
 
-from fastapi import APIRouter, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status
 
-from liraz_tools.api.deps import CredsRepo, PendingStore, ProfileRepo
+from liraz_tools.api.deps import (
+    CredsRepo,
+    PendingStore,
+    ProfileRepo,
+    require_admin_in_profile,
+)
 from liraz_tools.api.schemas.oauth_schemas import (
     AuthorizationUrlResponse,
     ImportFromMCPRequest,
@@ -37,7 +42,13 @@ from liraz_tools.infrastructure.repositories.per_profile_credentials_repository 
     OAuthCredentialsNotFoundError,
 )
 
-router = APIRouter(prefix="/api/profiles", tags=["oauth"])
+router = APIRouter(
+    prefix="/api/profiles",
+    tags=["oauth"],
+    # OAuth da loja é config sensível (CLIENT_ID/SECRET) — só admin da loja
+    # (ou admin global do sistema, que bypassa) pode mexer/ver.
+    dependencies=[Depends(require_admin_in_profile)],
+)
 logger = get_logger(__name__)
 
 

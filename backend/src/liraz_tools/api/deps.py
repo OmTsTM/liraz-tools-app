@@ -138,28 +138,16 @@ CurrentUserOptional = Annotated[User | None, Depends(get_current_user_optional)]
 AdminUser = Annotated[User, Depends(get_admin_user)]
 
 
-async def require_profile_access_role(
-    profile_id_str: str,
+async def _check_role(
     user: User,
     access_repo: SQLAlchemyUserProfileAccessRepository,
-    *,
-    minimum: ProfileRole = ProfileRole.VIEWER,
+    profile_id: UUID,
+    minimum: ProfileRole,
 ) -> ProfileRole:
-    """Valida que `user` tem `role >= minimum` em `profile_id_str`.
-
-    Admin do sistema bypassa — devolve ADMIN. Para usuários comuns, busca
-    linha em `user_profile_access` e compara níveis. Levanta 403 se sem
-    acesso, 404 se UUID inválido. Usar dentro de endpoints que recebem
-    `profile_id` no path/body — não dá pra virar `Depends` direto porque
-    o nome do param varia.
-    """
+    """Valida `user` tem `role >= minimum` em `profile_id`. Admin global bypassa."""
     if user.is_admin:
         return ProfileRole.ADMIN
-    try:
-        profile_uuid = UUID(profile_id_str)
-    except ValueError as e:
-        raise HTTPException(status_code=404, detail="profile_id inválido") from e
-    role = await access_repo.get_role(user_id=user.id, profile_id=profile_uuid)
+    role = await access_repo.get_role(user_id=user.id, profile_id=profile_id)
     if role is None:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
@@ -171,3 +159,52 @@ async def require_profile_access_role(
             detail=f"requer role mínimo '{minimum.value}', você tem '{role.value}'",
         )
     return role
+
+
+async def require_viewer_in_profile(
+    profile_id: UUID,
+    user: CurrentUser,
+    access_repo: AccessRepo,
+) -> ProfileRole:
+    """Depends pra endpoints com `profile_id: UUID` no path. Exige role >= viewer."""
+    return await _check_role(user, access_repo, profile_id, ProfileRole.VIEWER)
+
+
+async def require_operator_in_profile(
+    profile_id: UUID,
+    user: CurrentUser,
+    access_repo: AccessRepo,
+) -> ProfileRole:
+    """Depends pra endpoints com `profile_id: UUID` no path. Exige role >= operator."""
+    return await _check_role(user, access_repo, profile_id, ProfileRole.OPERATOR)
+
+
+async def require_admin_in_profile(
+    profile_id: UUID,
+    user: CurrentUser,
+    access_repo: AccessRepo,
+) -> ProfileRole:
+    """Depends pra endpoints com `profile_id: UUID` no path. Exige role == admin
+    (ou admin do sistema)."""
+    return await _check_role(user, access_repo, profile_id, ProfileRole.ADMIN)
+
+
+RequireViewer = Annotated[ProfileRole, Depends(require_viewer_in_profile)]
+RequireOperator = Annotated[ProfileRole, Depends(require_operator_in_profile)]
+RequireAdminProfile = Annotated[ProfileRole, Depends(require_admin_in_profile)]
+
+
+async def require_profile_access_role(
+    profile_id_str: str,
+    user: User,
+    access_repo: SQLAlchemyUserProfileAccessRepository,
+    *,
+    minimum: ProfileRole = ProfileRole.VIEWER,
+) -> ProfileRole:
+    """Versão "manual" pra handlers que recebem `profile_id` em outro nome
+    ou não como UUID. Prefira `RequireViewer/Operator/AdminProfile`."""
+    try:
+        profile_uuid = UUID(profile_id_str)
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail="profile_id inválido") from e
+    return await _check_role(user, access_repo, profile_uuid, minimum)

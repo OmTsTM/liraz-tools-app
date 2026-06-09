@@ -7,13 +7,20 @@ Sem scheduler, sem WhatsApp — o user dispara manualmente quando quer.
 from __future__ import annotations
 
 from datetime import date, timedelta
+from typing import Annotated, Any
 from uuid import UUID
 
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query
 from fastapi.responses import Response
 from pydantic import BaseModel
 
-from liraz_tools.api.deps import CredsRepo, DbSession, ProfileRepo
+from liraz_tools.api.deps import (
+    CredsRepo,
+    DbSession,
+    ProfileRepo,
+    require_operator_in_profile,
+    require_viewer_in_profile,
+)
 from liraz_tools.core.logging import get_logger
 from liraz_tools.domain.profiles.repository import ProfileNotFoundError
 from liraz_tools.domain.relatorio.use_cases import (
@@ -31,7 +38,12 @@ from liraz_tools.infrastructure.repositories.relatorio_diario_repository import 
     RelatorioDiarioRepository,
 )
 
-router = APIRouter(prefix="/api/profiles", tags=["relatorios"])
+router = APIRouter(
+    prefix="/api/profiles",
+    tags=["relatorios"],
+    # Reads: viewer. Write (gerar-agora) adiciona operator no handler.
+    dependencies=[Depends(require_viewer_in_profile)],
+)
 logger = get_logger(__name__)
 
 
@@ -159,6 +171,7 @@ async def gerar_pdf_agora(
     profile_repo: ProfileRepo,
     creds_repo: CredsRepo,
     session: DbSession,
+    _op: Annotated[Any, Depends(require_operator_in_profile)],
     dia: date | None = Query(
         default=None,
         description="Dia BRT (YYYY-MM-DD). Default: ontem.",

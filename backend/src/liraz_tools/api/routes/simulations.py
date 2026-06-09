@@ -16,7 +16,11 @@ from uuid import UUID
 from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.responses import Response
 
-from liraz_tools.api.deps import CredsRepo, ProfileRepo
+from liraz_tools.api.deps import (
+    CredsRepo,
+    ProfileRepo,
+    require_operator_in_profile,
+)
 from liraz_tools.api.schemas.simulation_schemas import (
     OverrideMarginRequest,
     SimulationDetailResponse,
@@ -48,7 +52,12 @@ from liraz_tools.infrastructure.repositories.snapshots_repository import (
     SnapshotsRepository,
 )
 
-router = APIRouter(prefix="/api/profiles", tags=["simulations"])
+router = APIRouter(
+    prefix="/api/profiles",
+    tags=["simulations"],
+    # Simulações são fluxo de operador — viewer não vê internals nem lista.
+    dependencies=[Depends(require_operator_in_profile)],
+)
 logger = get_logger(__name__)
 
 
