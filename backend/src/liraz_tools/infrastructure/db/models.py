@@ -237,6 +237,60 @@ class RepricingSnapshotModel(Base):
     )
 
 
+class UserModel(Base):
+    """Usuário do sistema (login email/senha).
+
+    Auth da aplicação (não do ML). E-mail é a chave de login (lowercase,
+    único). `password_hash` é bcrypt (~60 chars). `is_admin` dá acesso
+    irrestrito a todas as lojas + gestão de usuários; quem NÃO é admin
+    só vê lojas linkadas via `UserProfileAccessModel` com o role daquela
+    linha.
+    """
+
+    __tablename__ = "users"
+
+    id: Mapped[UUID] = mapped_column(String(36), primary_key=True, default=uuid4)
+    email: Mapped[str] = mapped_column(
+        String(255), unique=True, nullable=False, index=True,
+    )
+    password_hash: Mapped[str] = mapped_column(String(128), nullable=False)
+    nome: Mapped[str | None] = mapped_column(String(120), nullable=True)
+    is_admin: Mapped[bool] = mapped_column(nullable=False, default=False)
+    is_active: Mapped[bool] = mapped_column(nullable=False, default=True)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False,
+    )
+    last_login_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True,
+    )
+
+
+class UserProfileAccessModel(Base):
+    """ACL: (usuário, loja) -> role.
+
+    Linha = `user_id` tem `role` em `profile_id`. Admins NÃO precisam de
+    linha aqui (já veem tudo); a tabela só restringe usuários comuns.
+    Roles:
+      - `admin`:    full access (gerenciar config, OAuth, campanhas...)
+      - `operator`: opera (reprecificar, criar campanha) mas não muda config
+      - `viewer`:   só leitura (relatórios, listings)
+    """
+
+    __tablename__ = "user_profile_access"
+
+    id: Mapped[UUID] = mapped_column(String(36), primary_key=True, default=uuid4)
+    user_id: Mapped[UUID] = mapped_column(
+        String(36), ForeignKey("users.id"), nullable=False, index=True,
+    )
+    profile_id: Mapped[UUID] = mapped_column(
+        String(36), ForeignKey("profiles.id"), nullable=False, index=True,
+    )
+    role: Mapped[str] = mapped_column(String(16), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False,
+    )
+
+
 class RelatorioDiarioKpisModel(Base):
     """KPIs agregados do relatório diário (Fatia 1 de relatórios, jun/2026).
 

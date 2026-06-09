@@ -17,6 +17,9 @@ dependencies = [
     "python-multipart>=0.0.18",  # >=0.0.18 corrige CVE-2024-53981 (ReDoS no parse multipart)
     "matplotlib>=3.9.0",         # geração de gráficos PNG pros relatórios diários
     "reportlab>=4.2.0",          # composição dos PDFs (Fatia 1 de relatórios)
+    "bcrypt>=4.2.0",             # hash de senhas (login email/senha)
+    "itsdangerous>=2.2.0",       # assinatura HMAC do cookie de sessão
+    "email-validator>=2.2.0",    # backend do pydantic.EmailStr (validação de e-mail)
 ]
 
 [project.optional-dependencies]

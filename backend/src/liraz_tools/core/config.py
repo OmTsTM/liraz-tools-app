@@ -52,6 +52,23 @@ class Settings(BaseSettings):
     environment: str = "development"
     log_level: str = "INFO"
 
+    # Auth (login email/senha + ACL granular).
+    # `auth_required`: quando True, todos os /api/* (exceto health, login,
+    # callback OAuth) exigem cookie de sessão válido. Default False enquanto
+    # a UI de login não está pronta — vira True quando subir pra Render.
+    # `auth_session_secret`: segredo HMAC do cookie de sessão. EM PRODUCAO
+    # precisa ser setado por env var (LIRAZ_TOOLS_AUTH_SESSION_SECRET). O
+    # default só serve pra dev local; trocar invalida sessoes existentes.
+    # `auth_session_ttl_hours`: validade do cookie. 12h é confortável pra
+    # dia de trabalho sem fazer relogin no meio.
+    # `auth_cookie_secure`: marca o cookie como Secure (só envia em HTTPS).
+    # Em dev local (HTTP) precisa ficar False; em Render (HTTPS) True.
+    auth_required: bool = False
+    auth_session_secret: str = "dev-only-change-me-in-production"
+    auth_session_ttl_hours: int = 12
+    auth_cookie_secure: bool = False
+    auth_cookie_name: str = "liraz_session"
+
 
 @lru_cache
 def get_settings() -> Settings:

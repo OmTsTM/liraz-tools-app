@@ -10,6 +10,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from liraz_tools import __version__
 from liraz_tools.api.routes import (
     applications,
+    auth,
     campaigns,
     config_files,
     cost_overrides,
@@ -128,6 +129,7 @@ app.add_middleware(
 
 # Rotas
 app.include_router(health.router)
+app.include_router(auth.router)
 app.include_router(profiles.router)
 app.include_router(oauth.router)
 app.include_router(oauth_callback.router)
