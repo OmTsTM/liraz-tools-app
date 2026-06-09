@@ -1,9 +1,14 @@
+import { LogOut, Shield, User } from "lucide-react";
 import { Link, Outlet, useLocation } from "react-router-dom";
 
+import { Button } from "@/components/ui/button";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { ThemeToggle } from "@/components/ui/theme-toggle";
+import { useAuth } from "@/contexts/auth-context";
 
 export function AppLayout() {
   const location = useLocation();
+  const { user, isAdmin, logout } = useAuth();
 
   return (
     <div className="min-h-screen bg-background">
@@ -24,6 +29,47 @@ export function AppLayout() {
           <div className="flex items-center gap-3">
             <span className="text-xs text-muted-foreground">v0.1.0</span>
             <ThemeToggle />
+            {user && (
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button variant="ghost" size="sm" className="gap-2">
+                    <User className="h-4 w-4" />
+                    <span className="text-xs">{user.nome || user.email}</span>
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent align="end" className="w-56 p-2">
+                  <div className="border-b px-2 pb-2">
+                    <div className="text-sm font-medium">{user.nome || "—"}</div>
+                    <div className="text-xs text-muted-foreground">{user.email}</div>
+                    {isAdmin && (
+                      <div className="mt-1 inline-flex items-center gap-1 rounded bg-foreground/10 px-1.5 py-0.5 text-[10px] font-medium">
+                        <Shield className="h-3 w-3" />
+                        Admin do sistema
+                      </div>
+                    )}
+                  </div>
+                  <div className="space-y-1 pt-2">
+                    {isAdmin && (
+                      <Button asChild variant="ghost" size="sm" className="w-full justify-start">
+                        <Link to="/admin/users">
+                          <Shield className="mr-2 h-4 w-4" />
+                          Gerenciar usuários
+                        </Link>
+                      </Button>
+                    )}
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="w-full justify-start text-destructive hover:text-destructive"
+                      onClick={() => void logout()}
+                    >
+                      <LogOut className="mr-2 h-4 w-4" />
+                      Sair
+                    </Button>
+                  </div>
+                </PopoverContent>
+              </Popover>
+            )}
           </div>
         </div>
       </header>

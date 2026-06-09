@@ -16,14 +16,18 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "@/components/ui/toaster";
+import { useAuth } from "@/contexts/auth-context";
 import { useActivateProfile, useDeleteProfile, useProfiles } from "@/features/profiles/hooks";
 import { ProfileCard } from "@/features/profiles/profile-card";
 import type { Profile } from "@/types/api";
 
 export function StoreSelectorPage() {
   const navigate = useNavigate();
+  const { isAdmin } = useAuth();
   const { data, isLoading, isError, error, refetch } = useProfiles();
-  // Lista total (incluindo arquivadas) só pra saber se mostra o link
+  // Lista total (incluindo arquivadas) só pra saber se mostra o link.
+  // Non-admins não enxergam arquivadas via API (backend filtra), então o
+  // count fica zerado pra eles — botão some.
   const { data: dataWithArchived } = useProfiles(true);
   const activate = useActivateProfile();
   const deleteProfile = useDeleteProfile();
@@ -87,6 +91,7 @@ export function StoreSelectorPage() {
 
       {data && data.items.length === 0 && (
         <EmptyState
+          isAdmin={isAdmin}
           onCreate={() => navigate("/profiles/new")}
           archivedCount={archivedCount}
           onViewArchived={() => navigate("/profiles/archived")}
@@ -106,23 +111,27 @@ export function StoreSelectorPage() {
             ))}
           </div>
 
-          <div className="flex flex-wrap items-center gap-3 border-t pt-6">
-            <Button variant="outline" onClick={() => navigate("/profiles/new")}>
-              <Plus className="h-4 w-4" />
-              Adicionar nova loja
-            </Button>
-
-            {archivedCount > 0 && (
-              <Button
-                variant="ghost"
-                onClick={() => navigate("/profiles/archived")}
-                className="text-muted-foreground"
-              >
-                <Archive className="h-4 w-4" />
-                Lojas arquivadas ({archivedCount})
+          {/* Admin global gerencia o cadastro de lojas. Operator/Viewer não
+              criam nem arquivam — só usam as lojas liberadas. */}
+          {isAdmin && (
+            <div className="flex flex-wrap items-center gap-3 border-t pt-6">
+              <Button variant="outline" onClick={() => navigate("/profiles/new")}>
+                <Plus className="h-4 w-4" />
+                Adicionar nova loja
               </Button>
-            )}
-          </div>
+
+              {archivedCount > 0 && (
+                <Button
+                  variant="ghost"
+                  onClick={() => navigate("/profiles/archived")}
+                  className="text-muted-foreground"
+                >
+                  <Archive className="h-4 w-4" />
+                  Lojas arquivadas ({archivedCount})
+                </Button>
+              )}
+            </div>
+          )}
         </>
       )}
 
@@ -196,10 +205,12 @@ function ErrorState({
 }
 
 function EmptyState({
+  isAdmin,
   onCreate,
   archivedCount,
   onViewArchived,
 }: {
+  isAdmin: boolean;
   onCreate: () => void;
   archivedCount: number;
   onViewArchived: () => void;
@@ -216,23 +227,27 @@ function EmptyState({
           {hasArchived ? "Nenhuma loja ativa" : "Nenhuma loja conectada"}
         </h3>
         <p className="max-w-md text-sm text-muted-foreground">
-          {hasArchived
-            ? `Você tem ${archivedCount} loja(s) arquivada(s). Desarquive uma delas ou adicione uma nova loja.`
-            : "Comece adicionando uma loja do Mercado Livre. Você pode conectar via OAuth normal ou importar credenciais de um projeto MCP existente."}
+          {!isAdmin
+            ? "Você ainda não tem acesso a nenhuma loja. Peça ao admin da empresa pra liberar."
+            : hasArchived
+              ? `Você tem ${archivedCount} loja(s) arquivada(s). Desarquive uma delas ou adicione uma nova loja.`
+              : "Comece adicionando uma loja do Mercado Livre. Você pode conectar via OAuth normal ou importar credenciais de um projeto MCP existente."}
         </p>
       </div>
-      <div className="flex flex-wrap items-center justify-center gap-2">
-        <Button onClick={onCreate}>
-          <Plus className="h-4 w-4" />
-          {hasArchived ? "Adicionar nova loja" : "Adicionar primeira loja"}
-        </Button>
-        {hasArchived && (
-          <Button variant="outline" onClick={onViewArchived}>
-            <Archive className="h-4 w-4" />
-            Ver lojas arquivadas ({archivedCount})
+      {isAdmin && (
+        <div className="flex flex-wrap items-center justify-center gap-2">
+          <Button onClick={onCreate}>
+            <Plus className="h-4 w-4" />
+            {hasArchived ? "Adicionar nova loja" : "Adicionar primeira loja"}
           </Button>
-        )}
-      </div>
+          {hasArchived && (
+            <Button variant="outline" onClick={onViewArchived}>
+              <Archive className="h-4 w-4" />
+              Ver lojas arquivadas ({archivedCount})
+            </Button>
+          )}
+        </div>
+      )}
     </Card>
   );
 }
