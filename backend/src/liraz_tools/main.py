@@ -131,9 +131,12 @@ class BasicAuthMiddleware(BaseHTTPMiddleware):
 
     def __init__(self, app, user: str, password: str) -> None:  # type: ignore[no-untyped-def]
         super().__init__(app)
-        self._user = user
-        self._password = password
-        self._enabled = bool(user and password)
+        # `.strip()` defensivo: o painel de env vars do Render às vezes
+        # carrega valor com whitespace/newline no fim quando o usuário cola
+        # — isso fazia o `compare_digest` falhar silenciosamente.
+        self._user = (user or "").strip()
+        self._password = (password or "").strip()
+        self._enabled = bool(self._user and self._password)
 
     async def dispatch(self, request: Request, call_next):  # type: ignore[no-untyped-def]
         if not self._enabled or request.url.path == "/health":

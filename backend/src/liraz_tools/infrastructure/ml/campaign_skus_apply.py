@@ -101,6 +101,10 @@ class AplicarSkusResult:
     # depois pra confirmar se o item de fato entrou (e, se não entrou, decidir
     # se reverte preço manualmente).
     pendentes_lock: list[str] = field(default_factory=list)
+    # `pulados_inflacao_falhou`: pediu inflação, PUT falhou → NÃO adicionamos
+    # à campanha pra não deixar SKU com preço-base baixo + desconto (margem
+    # despenca). Sem esse gate, o SKU acabava vendendo com margem quase zero.
+    pulados_inflacao_falhou: list[str] = field(default_factory=list)
     erros: list[dict[str, Any]] = field(default_factory=list)
 
 
@@ -118,6 +122,9 @@ class _ItemOutcome:
     clamped: bool = False
     pulado_ausente: bool = False
     pulado_por_margem: bool = False
+    # Fase 1 (inflação) foi pedida e falhou — Fase 2 (adição) foi PULADA pra
+    # evitar SKU na campanha com margem quebrada.
+    pulado_inflacao_falhou: bool = False
     # 423 LockedEntity persistiu mesmo após retries — preço-base FICA inflado
     # (NÃO reverte) porque o ML costuma adicionar o item depois de destravar.
     pendente_lock: bool = False
@@ -353,12 +360,21 @@ async def aplicar_adicoes_skus_em_campanha(
         async with sem:
             # ── Fase 1: inflação (se pedida e com snapshot pra reverter) ──
             novo_preco = inflar_precos.get(item_id)
-            if novo_preco is not None:
-                if novo_preco <= 0:
+            # Bug histórico: quando a inflação era pedida mas FALHAVA (preço
+            # inválido, snapshot faltando, ML rejeitando PUT), a Fase 2 rodava
+            # mesmo assim e o SKU acabava na campanha SEM o preço-base inflado
+            # — resultado: desconto aplicado sobre preço-base baixo, margem
+            # despenca. Fix: se pediu pra inflar E falhou por qualquer motivo,
+            # PULA a Fase 2 pra não adicionar SKU quebrado na campanha.
+            inflacao_pedida = novo_preco is not None
+            inflacao_falhou = False
+            if inflacao_pedida:
+                if novo_preco is None or novo_preco <= 0:
                     out.erros.append({
                         "item_id": item_id, "operacao": "inflar",
                         "erro": f"preço inválido: {novo_preco}",
                     })
+                    inflacao_falhou = True
                 elif item_id not in precos_originais:
                     out.erros.append({
                         "item_id": item_id, "operacao": "inflar",
@@ -367,6 +383,7 @@ async def aplicar_adicoes_skus_em_campanha(
                             "inflei (evita ficar sem reversão)"
                         ),
                     })
+                    inflacao_falhou = True
                 else:
                     try:
                         await atualizar_preco_item(ml, item_id, novo_preco)
@@ -375,6 +392,23 @@ async def aplicar_adicoes_skus_em_campanha(
                         out.erros.append({
                             "item_id": item_id, "operacao": "inflar", "erro": str(e),
                         })
+                        inflacao_falhou = True
+
+            if inflacao_pedida and inflacao_falhou:
+                out.pulado_inflacao_falhou = True
+                if logger is not None:
+                    logger.warning(
+                        "campaign_add_pulado_inflacao_falhou",
+                        item_id=item_id, ml_campaign_id=ml_campaign_id,
+                        preco_alvo_inflacao=novo_preco,
+                        preco_atual=precos_originais.get(item_id),
+                        motivo=(
+                            "inflar_precos pediu PUT mas falhou; adicionar sem "
+                            "inflar deixaria o SKU na campanha com margem "
+                            "quebrada (deal em cima do preço-base baixo)"
+                        ),
+                    )
+                return out
 
             # ── Fase 2: adição (com retry de fallback em ERROR_CREDIBILITY) ──
             # Usa o deal EFETIVO (já clampado se aplicável; senão = original).
@@ -543,6 +577,8 @@ async def aplicar_adicoes_skus_em_campanha(
             res.pulados_ausente.append(out.item_id)
         if out.pulado_por_margem:
             res.pulados_por_margem.append(out.item_id)
+        if out.pulado_inflacao_falhou:
+            res.pulados_inflacao_falhou.append(out.item_id)
         if out.pendente_lock:
             res.pendentes_lock.append(out.item_id)
         res.erros.extend(out.erros)
