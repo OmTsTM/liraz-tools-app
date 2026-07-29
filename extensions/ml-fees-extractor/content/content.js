@@ -11,9 +11,10 @@
 //     .sll-list-cell-price                                      (= preço — 1 por modalidade)
 //     .sll-list-cell-purchase-options                           (= 1 por modalidade)
 //       text-line: "Clássico"/"Premium"
-//       text-line: "R$ X,XX"   ← comissão (ignorar)
+//       text-line: "A pagar R$ X,XX"   ← comissão (ignorar)
 //       text-line: "Envio por conta do comprador" / "Você oferece frete grátis"
-//       text-line: "R$ X,XX"   ← TARIFA FIXA ou FRETE (queremos)
+//       text-line: "A pagar R$ X,XX"   ← TARIFA FIXA ou FRETE (queremos = ÚLTIMO "A pagar")
+//       text-line: "Você receberá até R$ Y,YY por usar o Flex"   ← bônus (IGNORAR)
 //
 // Empareçamento: 1º MLB ↔ 1ª purchase-cell ↔ 1ª price-cell, etc.
 
@@ -80,6 +81,25 @@ const extrairValoresReais = (el) => {
   return out;
 };
 
+// Extrai só valores rotulados como "A pagar R$ X,XX". Estrutura atual do card:
+//   "A pagar R$ 23,23"   ← comissão
+//   "Você oferece frete grátis"
+//   "A pagar R$ 23,65"   ← FRETE REAL
+//   "Você receberá até R$ 0,89 por usar o Flex"   ← bônus opcional (IGNORAR)
+// O último R$ da cell agora pode ser o bônus Flex, então `extrairValoresReais`
+// pega o valor errado. Este filtro pega só "A pagar", ignora "receberá".
+const extrairValoresAPagar = (el) => {
+  if (!el) return [];
+  const txt = (el.textContent || '').replace(/\s+/g, ' ').trim();
+  const matches = [...txt.matchAll(/A\s*pagar\s*R\$\s*([\d.,]+)/gi)];
+  const out = [];
+  for (const m of matches) {
+    const n = parseFloat(m[1].replace(/\./g, '').replace(',', '.'));
+    if (Number.isFinite(n)) out.push(n);
+  }
+  return out;
+};
+
 // Verifica se um descendente pertence a um sub-container aninhado (família ou
 // item dentro do alvo). Usado pra não duplicar MLBs/cells quando o container
 // pai contém sub-containers (caso família expandida).
@@ -131,9 +151,17 @@ const extrairDeContainer = (container) => {
     const cellText = (pCell?.textContent || '').toLowerCase();
     const freteGratis = /frete\s*gr[áa]tis|voc[êe]\s*oferece/i.test(cellText);
 
-    // Pega TODOS os R$ X,XX dentro da cell de purchase-options.
-    // Estrutura observada: [comissão, tarifa_ou_frete] — usamos o ÚLTIMO.
-    const valores = extrairValoresReais(pCell);
+    // Pega os valores "A pagar R$ X,XX" na cell (comissão + tarifa/frete).
+    // Usamos o ÚLTIMO "A pagar" — que é a tarifa fixa ou o frete.
+    // FIX: ignora "Você receberá até R$ 0,89 por usar o Flex" que o ML passou
+    // a inserir depois do frete real (fazia o pega-tudo antigo capturar o
+    // bônus Flex como se fosse o frete).
+    // Fallback: se o ML mudar o rótulo, cai no comportamento antigo (último
+    // R$ da cell) pra não quebrar completamente.
+    let valores = extrairValoresAPagar(pCell);
+    if (valores.length === 0) {
+      valores = extrairValoresReais(pCell);
+    }
     const lastValor = valores.length > 0 ? valores[valores.length - 1] : null;
 
     // Preço base destacado (semibold) da cell de price
