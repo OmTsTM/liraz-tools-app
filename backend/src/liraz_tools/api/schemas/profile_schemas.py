@@ -37,6 +37,8 @@ class ProfileConfigDTO(BaseModel):
     migracao_automatica_ativa: bool = False
     migracao_dry_run: bool = True
     migracao_intervalo_horas: int = 6
+    # Adesão automática de SKUs novos a campanhas locais (ago/2026)
+    adesao_automatica_ativa: bool = False
     # Relatório diário automático (Fatia 2)
     relatorio_diario_ativo: bool = False
     relatorio_diario_hora_brt: str = "07:00"
