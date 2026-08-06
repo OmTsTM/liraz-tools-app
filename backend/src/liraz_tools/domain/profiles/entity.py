@@ -101,6 +101,21 @@ class ProfileConfig(BaseModel):
     migracao_intervalo_horas: int = Field(default=6, ge=1, le=24)
     """Intervalo entre varreduras do scheduler de migração (Leva C.3)."""
 
+    # Auto-adesão de SKUs novos (ago/2026). Quando ligado, o mesmo scheduler
+    # da migração (a cada `migracao_intervalo_horas`) também roda um passo de
+    # "adesão": pra cada campanha `origem=local` ATIVA do perfil, pega os SKUs
+    # que o ML listou como `candidate` MAS ainda não estão em `skus_selecionados`
+    # local, roda passo3 e tenta adicionar em 3 tentativas:
+    #   1) inflar preço-base pra U ideal + adicionar com deal_price
+    #   2) se falhar por ERROR_CREDIBILITY: rollback do preço, adicionar direto
+    #      com deal_price passo3 sem mexer na base
+    #   3) se ainda falhar: reprecifica o anúncio pro preço de margem alvo
+    #      (venda direta sem promo)
+    # Registra tudo em `migracoes_executadas` com operacao='adesao_automatica'.
+    # Default False — usuário liga só depois de garantir que campanhas locais
+    # estão como quer (senão adere em massa a algo indesejado).
+    adesao_automatica_ativa: bool = Field(default=False)
+
     # Relatório diário automático (ago/2026 — Fatia 2).
     relatorio_diario_ativo: bool = Field(default=False)
     """Se True, o scheduler de relatórios gera 1 PDF por dia (do dia anterior)

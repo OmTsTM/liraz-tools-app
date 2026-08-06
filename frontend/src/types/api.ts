@@ -36,6 +36,8 @@ export interface ProfileConfig {
   migracao_dry_run: boolean;
   /** Intervalo entre execuções do scheduler para este perfil. */
   migracao_intervalo_horas: number;
+  /** Adesão automática de SKUs novos a campanhas locais ativas. */
+  adesao_automatica_ativa: boolean;
   /** Relatório diário automático (Fatia 2). */
   relatorio_diario_ativo: boolean;
   /** Horário BRT (HH:MM) pra gerar o relatório do dia anterior. */

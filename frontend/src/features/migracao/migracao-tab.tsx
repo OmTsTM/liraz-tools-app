@@ -78,6 +78,24 @@ export function MigracaoTab({ campaign, profileId }: MigracaoTabProps) {
     );
   };
 
+  const handleToggleAdesao = async (next: boolean) => {
+    if (!profile) return;
+    await updateProfileMut.mutateAsync({
+      id: profileId,
+      data: {
+        config: {
+          ...profile.config,
+          adesao_automatica_ativa: next,
+        },
+      },
+    });
+    toast.success(
+      next
+        ? "Adesão automática ligada — SKUs candidate vão entrar sozinhos nas camps locais"
+        : "Adesão automática desligada",
+    );
+  };
+
   const handleToggleDryRun = async (next: boolean) => {
     if (!profile) return;
     await updateProfileMut.mutateAsync({
@@ -192,6 +210,14 @@ export function MigracaoTab({ campaign, profileId }: MigracaoTabProps) {
               onChange={handleToggleDryRun}
               disabled={updateProfileMut.isPending}
               danger={!profile?.config.migracao_dry_run}
+            />
+
+            <ToggleRow
+              label="Adesão automática de SKUs novos"
+              description="Quando ligada, SKUs que o ML lista como candidate em campanhas locais ativas são adicionados automaticamente (escada: inflar+add → add sem inflar → reprecificar solo)."
+              checked={Boolean(profile?.config.adesao_automatica_ativa)}
+              onChange={handleToggleAdesao}
+              disabled={updateProfileMut.isPending}
             />
           </div>
 

@@ -85,6 +85,7 @@ export function ConfigEditorCard({ profile }: ConfigEditorCardProps) {
       migracao_automatica_ativa: profile.config.migracao_automatica_ativa ?? false,
       migracao_dry_run: profile.config.migracao_dry_run ?? true,
       migracao_intervalo_horas: profile.config.migracao_intervalo_horas ?? 6,
+      adesao_automatica_ativa: profile.config.adesao_automatica_ativa ?? false,
       // Preserva config do relatório diário — editável no card próprio
       relatorio_diario_ativo: profile.config.relatorio_diario_ativo ?? false,
       relatorio_diario_hora_brt: profile.config.relatorio_diario_hora_brt ?? "07:00",
