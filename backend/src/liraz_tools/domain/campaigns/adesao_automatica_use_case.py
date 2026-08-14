@@ -72,7 +72,43 @@ class AdesaoResult:
     adicionados_com_inflar: list[str] = field(default_factory=list)
     adicionados_sem_inflar: list[str] = field(default_factory=list)
     reprecificados_solo: list[str] = field(default_factory=list)
+    # SKUs que iam pra tentativa 3 (reprecificar solo) mas foram PULADOS
+    # porque já estão em OUTRA SELLER_CAMPAIGN started — reprecificar
+    # derrubaria o preço-base inflado usado nessa outra promo.
+    pulados_ja_em_outra_promo: list[str] = field(default_factory=list)
     falharam: list[tuple[str, str]] = field(default_factory=list)
+
+
+async def _sku_em_outra_seller_campaign_started(
+    ml: MLClient, item_id: str, promocao_atual: str,
+) -> str | None:
+    """Se o SKU está em ALGUMA SELLER_CAMPAIGN started diferente da atual,
+    retorna o id dessa outra promoção. Senão, None.
+
+    Serve pra evitar que a tentativa 3 (reprecificar solo pro deal_price
+    passo3) derrube o preço-base de um SKU que já está inflado
+    propositalmente pra outra promo ativa. Sem essa checagem, o app baixa
+    o preço-base e sabota a promo ativa (bug detectado ago/2026).
+    """
+    try:
+        promos = await ml.get(
+            f"/seller-promotions/items/{item_id}?app_version=v2",
+        )
+    except Exception:
+        # Se falhar a checagem, o mais seguro é NÃO reprecificar (podemos
+        # quebrar algo sem saber). Retorna um marcador especial ("unknown")
+        # que o caller trata como "não mexe".
+        return "__unknown__"
+    if not isinstance(promos, list):
+        return None
+    for p in promos:
+        if (
+            p.get("type") == "SELLER_CAMPAIGN"
+            and p.get("status") == "started"
+            and p.get("id") != promocao_atual
+        ):
+            return str(p.get("id"))
+    return None
 
 
 async def _listar_candidates_da_promocao(
@@ -177,6 +213,7 @@ class AdesaoAutomaticaUseCase:
             res.adicionados_com_inflar
             or res.adicionados_sem_inflar
             or res.reprecificados_solo
+            or res.pulados_ja_em_outra_promo
             or res.falharam
         ):
             logger.info(
@@ -186,6 +223,7 @@ class AdesaoAutomaticaUseCase:
                 com_inflar=len(res.adicionados_com_inflar),
                 sem_inflar=len(res.adicionados_sem_inflar),
                 reprecificados_solo=len(res.reprecificados_solo),
+                pulados_ja_em_outra_promo=len(res.pulados_ja_em_outra_promo),
                 falharam=len(res.falharam),
             )
         return res
@@ -280,6 +318,10 @@ class AdesaoAutomaticaUseCase:
 
                 # Tentativa 3: reprecificar solo (preço-base = deal_price
                 # passo3, sem entrar em promo).
+                # GATE anti-sabotagem: se o SKU já está em OUTRA
+                # SELLER_CAMPAIGN started, o preço-base atual foi setado
+                # propositalmente pra sustentar aquela promo — não podemos
+                # baixar aqui. Pula silenciosamente e loga.
                 ainda_fora = (
                     precisam_tentativa2
                     - set(res_t2.adicionados)
@@ -290,6 +332,24 @@ class AdesaoAutomaticaUseCase:
                     sg = by_sug.get(iid)
                     if not sg or not sg.deal_price:
                         res.falharam.append((iid, "sem sugestão válida"))
+                        continue
+                    outra_promo = await _sku_em_outra_seller_campaign_started(
+                        ml, iid, camp.ml_campaign_id,
+                    )
+                    if outra_promo is not None:
+                        res.pulados_ja_em_outra_promo.append(iid)
+                        logger.info(
+                            "adesao_reprecificar_pulado_outra_promo",
+                            item_id=iid,
+                            ml_campaign_id_tentativa=camp.ml_campaign_id,
+                            outra_promo_ativa=outra_promo,
+                            preco_alvo_solo_ignorado=sg.deal_price,
+                            motivo=(
+                                "SKU já está started em outra SELLER_CAMPAIGN; "
+                                "reprecificar solo derrubaria o preço-base "
+                                "usado por ela"
+                            ),
+                        )
                         continue
                     try:
                         await atualizar_preco_item(ml, iid, sg.deal_price)
