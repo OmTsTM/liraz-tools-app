@@ -43,6 +43,10 @@ export const pricingApi = {
     const response = await fetch(`${base}/api/profiles/${profileId}/config/custos-xlsx`, {
       method: "POST",
       body: formData,
+      // Manda o cookie de sessão (`liraz_session`) — sem isso o backend
+      // devolve 401 "não autenticado". Necessário em dev (front 5173 → back 8000,
+      // origens diferentes) e inofensivo em prod (mesma origem).
+      credentials: "include",
     });
 
     if (!response.ok) {
@@ -73,6 +77,7 @@ export const pricingApi = {
     const response = await fetch(`${base}/api/profiles/${profileId}/config/tarifas-ml-xlsx`, {
       method: "POST",
       body: formData,
+      credentials: "include",
     });
 
     if (!response.ok) {

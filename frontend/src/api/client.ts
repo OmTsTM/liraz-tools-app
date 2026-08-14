@@ -32,6 +32,17 @@ interface RequestOptions {
   signal?: AbortSignal;
 }
 
+/**
+ * Callback global pra reagir a 401 (sessão expirada / não autenticado).
+ * Auth context registra um handler que redireciona pra /login + limpa user.
+ */
+type UnauthorizedHandler = () => void;
+let onUnauthorized: UnauthorizedHandler | null = null;
+
+export function setUnauthorizedHandler(handler: UnauthorizedHandler | null): void {
+  onUnauthorized = handler;
+}
+
 export async function apiRequest<T>(path: string, options: RequestOptions = {}): Promise<T> {
   const { method = "GET", body, signal } = options;
 
@@ -43,7 +54,17 @@ export async function apiRequest<T>(path: string, options: RequestOptions = {}):
     },
     body: body !== undefined ? JSON.stringify(body) : undefined,
     signal,
+    // Garante envio do cookie de sessão (mesma origem com proxy do Vite — só
+    // por garantia caso o front e o backend vivam em hosts diferentes um dia).
+    credentials: "include",
   });
+
+  // 401 = sessão expirada/não autenticada. Notifica auth context, que decide
+  // se redireciona pra /login. NÃO dispara em /api/auth/login (evita loop e
+  // permite a tela de login mostrar "senha inválida").
+  if (response.status === 401 && !path.startsWith("/api/auth/login")) {
+    onUnauthorized?.();
+  }
 
   if (response.status === 204) {
     // No Content — sem body pra parsear

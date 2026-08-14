@@ -18,6 +18,7 @@ Para defesa em profundidade adicional, considerar no futuro:
 from __future__ import annotations
 
 import contextlib
+import os
 import stat
 from pathlib import Path
 
@@ -53,7 +54,29 @@ class Crypto:
         return self._fernet
 
     def _load_or_create_key(self) -> bytes:
-        """Lê chave do disco ou gera nova na 1ª execução."""
+        """Lê chave do disco ou gera nova na 1ª execução.
+
+        Em produção (Render etc.), o disco é efêmero — uma chave gerada no
+        boot some no próximo deploy e todas as credenciais ML viram lixo.
+        Por isso aceitamos override via env `LIRAZ_TOOLS_MASTER_KEY`: se
+        setado, usamos esse valor (precisa ser uma chave Fernet válida,
+        base64 urlsafe de 32 bytes — gere uma vez com
+        `python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"`
+        e salve no painel de env vars do Render).
+        """
+        env_key = os.environ.get("LIRAZ_TOOLS_MASTER_KEY")
+        if env_key:
+            raw = env_key.strip().encode("ascii")
+            try:
+                Fernet(raw)  # valida formato
+            except (InvalidToken, ValueError) as e:
+                raise CryptoError(
+                    "LIRAZ_TOOLS_MASTER_KEY tem formato inválido — gere com "
+                    "Fernet.generate_key() e cole o valor exato"
+                ) from e
+            logger.info("master_key_loaded_from_env")
+            return raw
+
         if self._key_path.exists():
             try:
                 raw = self._key_path.read_bytes()

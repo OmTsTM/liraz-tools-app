@@ -15,9 +15,9 @@ from __future__ import annotations
 import time
 from uuid import UUID
 
-from fastapi import APIRouter, File, HTTPException, UploadFile, status
+from fastapi import APIRouter, Depends, File, HTTPException, UploadFile, status
 
-from liraz_tools.api.deps import ProfileRepo
+from liraz_tools.api.deps import ProfileRepo, require_admin_in_profile
 from liraz_tools.api.schemas.pricing_schemas import UploadCustosXLSXResponse
 from liraz_tools.core.logging import get_logger
 from liraz_tools.core.paths import get_shared_dir
@@ -29,7 +29,12 @@ from liraz_tools.infrastructure.pricing.costs_loader import (
     carregar_tarifas_ml,
 )
 
-router = APIRouter(prefix="/api/profiles", tags=["config"])
+router = APIRouter(
+    prefix="/api/profiles",
+    tags=["config"],
+    # Upload de planilha de custos/tarifas é config sensível — só admin da loja.
+    dependencies=[Depends(require_admin_in_profile)],
+)
 logger = get_logger(__name__)
 
 

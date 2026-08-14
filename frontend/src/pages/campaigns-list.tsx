@@ -2,6 +2,7 @@ import { ArrowLeft, Calendar, ChevronDown, ChevronUp, Play, Plus, Trash2, X } fr
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 
+import { RoleGate } from "@/components/auth/role-gate";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -160,10 +161,12 @@ export function CampaignsListPage() {
         </div>
 
         <div className="flex flex-wrap gap-2">
-          <Button onClick={() => navigate(`/profiles/${id}/campaigns/new`)} size="sm">
-            <Plus className="h-4 w-4" />
-            Nova campanha
-          </Button>
+          <RoleGate profileId={id} minimum="operator">
+            <Button onClick={() => navigate(`/profiles/${id}/campaigns/new`)} size="sm">
+              <Plus className="h-4 w-4" />
+              Nova campanha
+            </Button>
+          </RoleGate>
         </div>
       </div>
 

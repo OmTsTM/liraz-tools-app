@@ -15,7 +15,12 @@ from fastapi import APIRouter, Depends, HTTPException, Query, status
 from fastapi.responses import Response
 from pydantic import BaseModel
 
-from liraz_tools.api.deps import CredsRepo, ProfileRepo
+from liraz_tools.api.deps import (
+    CredsRepo,
+    ProfileRepo,
+    require_operator_in_profile,
+    require_viewer_in_profile,
+)
 from liraz_tools.api.schemas.pricing_schemas import FeeReportResponse
 from liraz_tools.core.logging import get_logger
 from liraz_tools.domain.oauth.entity import TokenSet
@@ -34,7 +39,12 @@ from liraz_tools.infrastructure.repositories.pricing_cache import (
     get_fee_report_cache,
 )
 
-router = APIRouter(prefix="/api/profiles", tags=["listings"])
+router = APIRouter(
+    prefix="/api/profiles",
+    tags=["listings"],
+    # Read mínimo: viewer. Endpoints write adicionam operator individualmente.
+    dependencies=[Depends(require_viewer_in_profile)],
+)
 logger = get_logger(__name__)
 
 
@@ -80,8 +90,9 @@ async def get_listings_with_fees(
 async def refresh_fee_report(
     profile_id: UUID,
     cache: PricingCache,
+    _op: Annotated[Any, Depends(require_operator_in_profile)],
 ) -> None:
-    """Invalida o cache do relatório. Próxima chamada de /with-fees regera."""
+    """Invalida o cache do relatório (operator+). Próxima chamada de /with-fees regera."""
     cache.invalidate(profile_id)
 
 
@@ -221,6 +232,7 @@ async def debug_tarifa_fixa(
     item_id: str,
     profile_repo: ProfileRepo,
     creds_repo: CredsRepo,
+    _op: Annotated[Any, Depends(require_operator_in_profile)],
     preco_simulado: Annotated[
         float | None,
         Query(

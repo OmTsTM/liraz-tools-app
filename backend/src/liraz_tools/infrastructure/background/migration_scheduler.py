@@ -21,6 +21,7 @@ import asyncio
 import contextlib
 import os
 from datetime import UTC, datetime, timedelta
+from typing import Any
 from uuid import UUID
 
 from liraz_tools.core.logging import get_logger
@@ -39,6 +40,7 @@ from liraz_tools.domain.migration.use_cases import (
     DetectarOportunidadesMigracaoUseCase,
 )
 from liraz_tools.infrastructure.db.database import session_scope
+from liraz_tools.infrastructure.ml.client import MLClient
 from liraz_tools.infrastructure.repositories.campaign_repository import (
     CampaignRepository,
 )
@@ -144,7 +146,10 @@ class MigrationScheduler:
         perfis_ativos = [
             p for p in todos_perfis
             if p.status.value == "connected"
-            and p.config.migracao_automatica_ativa
+            and (
+                p.config.migracao_automatica_ativa
+                or p.config.adesao_automatica_ativa
+            )
         ]
 
         if not perfis_ativos:
@@ -201,6 +206,30 @@ async def _processar_perfil(profile_id: UUID) -> None:
         profile_id=str(profile_id),
     )
 
+    # Lê profile pra saber quais blocos rodar (migração e/ou adesão).
+    # O filtro em `_tick` já garante que pelo menos UM está ligado.
+    async with session_scope() as _s_flags:
+        _pr = SQLAlchemyProfileRepository(_s_flags)
+        _pf = await _pr.get_by_id(profile_id)
+    _migracao_on = _pf.config.migracao_automatica_ativa
+    _adesao_on = _pf.config.adesao_automatica_ativa
+
+    # Bloco de MIGRAÇÃO (ciclos 5.11 + loop de campanhas ml). Só se ligada.
+    if _migracao_on:
+        await _processar_migracao(profile_id)
+
+    # Bloco de ADESÃO AUTOMÁTICA (SKUs candidate → campanhas locais). Independente.
+    if _adesao_on:
+        try:
+            await _processar_adesao(profile_id)
+        except Exception:
+            logger.exception(
+                "adesao_automatica_falhou", profile_id=str(profile_id),
+            )
+
+
+async def _processar_migracao(profile_id: UUID) -> None:
+    """Corpo antigo do _processar_perfil: ciclos 5.11 + loop ml."""
     # ─── Leva 5.11 — Ciclos A (renovação), B (bootstrap), C (onboarding) ─
     # Rodam ANTES do loop de campanhas existente porque podem criar
     # guarda-chuvas novas que devem entrar no loop também.
@@ -411,6 +440,51 @@ async def _processar_campanha(
                 profile_id=str(profile_id),
                 campaign_id=str(campaign_id),
             )
+
+
+async def _processar_adesao(profile_id: UUID) -> None:
+    """Adesão automática: adiciona SKUs novos `candidate` a campanhas locais.
+
+    Rodado independente da migração (flag `adesao_automatica_ativa`).
+    Cada campanha `origem=local` ATIVA do perfil ganha uma passada — SKUs
+    que o ML já sugere como candidates mas ainda não estão no local são
+    processados via `AdesaoAutomaticaUseCase` (escada de 3 tentativas).
+    """
+    from liraz_tools.domain.campaigns.adesao_automatica_use_case import (
+        AdesaoAutomaticaUseCase,
+    )
+    from liraz_tools.infrastructure.repositories.cost_overrides_repository import (
+        CostOverridesRepository,
+    )
+
+    async with session_scope() as session:
+        profile_repo = SQLAlchemyProfileRepository(session)
+        campaign_repo = CampaignRepository(session)
+        historico_repo = MigracaoExecutadaRepository(session)
+        creds_repo = PerProfileCredentialsRepository()
+        overrides_repo = CostOverridesRepository()
+
+        profile = await profile_repo.get_by_id(profile_id)
+        if profile.ml_user_id is None:
+            return
+
+        creds = creds_repo.get_app_credentials(profile.slug)
+        tokens = creds_repo.get_tokens(profile.slug, profile.ml_user_id)
+
+        async def save_refreshed(new_tokens: Any) -> None:
+            creds_repo.save_tokens(profile.slug, new_tokens)
+
+        async with MLClient(
+            creds, tokens, on_tokens_refreshed=save_refreshed,
+        ) as ml:
+            uc = AdesaoAutomaticaUseCase(
+                profile_repo=profile_repo,
+                campaign_repo=campaign_repo,
+                creds_repo=creds_repo,
+                overrides_repo=overrides_repo,
+                historico_repo=historico_repo,
+            )
+            await uc.execute(profile, ml)
 
 
 # Singleton

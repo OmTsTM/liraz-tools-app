@@ -14,7 +14,7 @@ from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, status
 
-from liraz_tools.api.deps import ProfileRepo
+from liraz_tools.api.deps import ProfileRepo, require_operator_in_profile
 from liraz_tools.api.schemas.cost_override_schemas import (
     CostOverrideMutationResponse,
     SetCostOverrideRequest,
@@ -35,7 +35,12 @@ from liraz_tools.infrastructure.repositories.pricing_cache import (
     get_fee_report_cache,
 )
 
-router = APIRouter(prefix="/api/profiles", tags=["cost-overrides"])
+router = APIRouter(
+    prefix="/api/profiles",
+    tags=["cost-overrides"],
+    # Editar custo é decisão operacional — operator+
+    dependencies=[Depends(require_operator_in_profile)],
+)
 logger = get_logger(__name__)
 
 

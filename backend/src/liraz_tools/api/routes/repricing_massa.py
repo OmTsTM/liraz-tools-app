@@ -9,13 +9,19 @@ Rotas:
 """
 from __future__ import annotations
 
-from typing import Annotated
+from typing import Annotated, Any
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel, Field
 
-from liraz_tools.api.deps import CredsRepo, DbSession, ProfileRepo
+from liraz_tools.api.deps import (
+    CredsRepo,
+    DbSession,
+    ProfileRepo,
+    require_operator_in_profile,
+    require_viewer_in_profile,
+)
 from liraz_tools.core.logging import get_logger
 from liraz_tools.domain.profiles.repository import ProfileNotFoundError
 from liraz_tools.domain.repricing_massa.use_cases import (
@@ -32,7 +38,13 @@ from liraz_tools.infrastructure.repositories.repricing_snapshot_repository impor
     RepricingSnapshotRepository,
 )
 
-router = APIRouter(prefix="/api/profiles", tags=["repricing-massa"])
+router = APIRouter(
+    prefix="/api/profiles",
+    tags=["repricing-massa"],
+    # Simular é leitura (cálculo puro) — viewer OK. Aplicar/reverter precisam
+    # de operator (validado nos handlers).
+    dependencies=[Depends(require_viewer_in_profile)],
+)
 logger = get_logger(__name__)
 
 
@@ -164,6 +176,7 @@ async def aplicar_repricing_massa(
     profile_repo: ProfileRepo,
     creds_repo: CredsRepo,
     session: DbSession,
+    _op: Annotated[Any, Depends(require_operator_in_profile)],
 ) -> ApplyResponse:
     """Aplica PUT /items/{id} em massa pros preços confirmados.
 
@@ -242,6 +255,7 @@ async def reverter_sessao_repricing(
     profile_repo: ProfileRepo,
     creds_repo: CredsRepo,
     session: DbSession,
+    _op: Annotated[Any, Depends(require_operator_in_profile)],
 ) -> RevertResponse:
     """Reverte uma sessão de Reprecificar Tudo aplicando PUT pros preços
     anteriores. Idempotente — itens já no preço antigo viram `ja_no_preco`."""

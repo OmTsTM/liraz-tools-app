@@ -23,7 +23,12 @@ from uuid import UUID
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from pydantic import BaseModel, Field
 
-from liraz_tools.api.deps import CredsRepo, DbSession, ProfileRepo
+from liraz_tools.api.deps import (
+    CredsRepo,
+    DbSession,
+    ProfileRepo,
+    require_operator_in_profile,
+)
 from liraz_tools.api.schemas.campaign_schemas import (
     CampaignItemEligible,
     CampaignItemInfo,
@@ -139,7 +144,12 @@ if TYPE_CHECKING:
         CostOverridesRepository,
     )
 
-router = APIRouter(prefix="/api/profiles", tags=["campaigns"])
+router = APIRouter(
+    prefix="/api/profiles",
+    tags=["campaigns"],
+    # Campanhas (CRUD + sync ML) é fluxo de operador — viewer não vê.
+    dependencies=[Depends(require_operator_in_profile)],
+)
 logger = get_logger(__name__)
 
 

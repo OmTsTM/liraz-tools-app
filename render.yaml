@@ -1,0 +1,76 @@
+# Blueprint do Render — https://render.com/docs/blueprint-spec
+# Cria/atualiza o serviço web do LiraZ Tools com 1 comando:
+#   1) Clica "New +" → "Blueprint" no dashboard do Render
+#   2) Aponta pro repo `OmTsTM/liraz-tools-app`, branch `main` (ou outra)
+#   3) Render lê esse arquivo e provisiona
+#
+# Os SECRETS (auth_session_secret, basic_auth_password, master key) NÃO ficam
+# aqui — são `sync: false` e precisam ser preenchidos UMA VEZ no dashboard.
+services:
+  - type: web
+    name: liraz-tools
+    runtime: docker
+    plan: starter          # free não tem disco persistente — SQLite some no
+                           # restart. Pra prod use starter+ com disco abaixo.
+    autoDeploy: true
+    healthCheckPath: /health
+    dockerfilePath: ./Dockerfile
+    dockerContext: .
+
+    # Disco persistente pra SQLite + arquivos por perfil. Sem isso, todo
+    # restart perde dados.
+    disk:
+      name: liraz-data
+      mountPath: /data
+      sizeGB: 1
+
+    envVars:
+      # Bind no host certo + usar o $PORT que o Render injeta
+      - key: LIRAZ_TOOLS_HOST
+        value: 0.0.0.0
+      - key: LIRAZ_TOOLS_DATA_DIR
+        value: /data
+      - key: LIRAZ_TOOLS_SPA_DIST_DIR
+        value: /app/frontend-dist
+
+      # Schedulers — em produção podem ficar ligados; deixam o app fazendo
+      # migração automática + relatório diário.
+      - key: ENABLE_MIGRATION_SCHEDULER
+        value: "true"
+      - key: ENABLE_RELATORIO_SCHEDULER
+        value: "true"
+
+      # Ambiente / log
+      - key: LIRAZ_TOOLS_ENVIRONMENT
+        value: production
+      - key: LIRAZ_TOOLS_LOG_LEVEL
+        value: INFO
+
+      # ── AUTH DO APP (cookie sessão + cookies seguros HTTPS) ──
+      - key: LIRAZ_TOOLS_AUTH_REQUIRED
+        value: "true"
+      - key: LIRAZ_TOOLS_AUTH_COOKIE_SECURE
+        value: "true"
+      - key: LIRAZ_TOOLS_AUTH_SESSION_TTL_HOURS
+        value: "12"
+
+      # CORS — em prod o front e o backend vivem na MESMA origem (servidos
+      # juntos), então CORS fica restrito a Render. Atualizar se mudar host.
+      - key: LIRAZ_TOOLS_CORS_ORIGINS
+        value: '["https://liraz-tools.onrender.com"]'
+
+      # ── SECRETS — preencher UMA vez no dashboard do Render ──
+      # Gere com: python -c "import secrets; print(secrets.token_urlsafe(48))"
+      - key: LIRAZ_TOOLS_AUTH_SESSION_SECRET
+        sync: false
+      # Gere com: python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"
+      # CRÍTICO: se perder essa chave, todas as credenciais ML criptografadas
+      # viram lixo e usuários precisam reautorizar do zero.
+      - key: LIRAZ_TOOLS_MASTER_KEY
+        sync: false
+      # Basic Auth global (escolha um usuário e senha forte; some o app do
+      # mundo até o login do app aparecer). Pra DESLIGAR, deixe ambos vazios.
+      - key: LIRAZ_TOOLS_BASIC_AUTH_USER
+        sync: false
+      - key: LIRAZ_TOOLS_BASIC_AUTH_PASSWORD
+        sync: false

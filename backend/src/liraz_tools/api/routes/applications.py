@@ -19,7 +19,12 @@ from uuid import UUID
 from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel
 
-from liraz_tools.api.deps import CredsRepo, DbSession, ProfileRepo
+from liraz_tools.api.deps import (
+    CredsRepo,
+    DbSession,
+    ProfileRepo,
+    require_operator_in_profile,
+)
 from liraz_tools.core.logging import get_logger
 from liraz_tools.domain.applications.entity import Application
 from liraz_tools.domain.applications.start_passo3_use_case import (
@@ -49,7 +54,12 @@ from liraz_tools.infrastructure.repositories.snapshots_repository import (
     SnapshotsRepository,
 )
 
-router = APIRouter(prefix="/api/profiles", tags=["applications"])
+router = APIRouter(
+    prefix="/api/profiles",
+    tags=["applications"],
+    # Disparar/reverter aplicação é operação séria — operator+
+    dependencies=[Depends(require_operator_in_profile)],
+)
 logger = get_logger(__name__)
 
 
